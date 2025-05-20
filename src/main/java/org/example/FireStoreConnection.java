@@ -75,6 +75,28 @@ public class FireStoreConnection {
         return records;
     }
 
+//    public void addEmployee(Employee employee, Payslip payslip) throws ExecutionException, InterruptedException {
+//        Map<String, Object> data = new LinkedHashMap<>();
+//        data.put("id", employee.getId());
+//        data.put("name", employee.getName());
+//        data.put("position", employee.getPosition());
+//        data.put("dailySalary", employee.getDailySalary());
+//        data.put("daysPresent", employee.getDaysPresent());
+//        data.put("grossPay", employee.computeGrossSalary());
+//
+//        // Deductions
+//        data.put("pagIbig", payslip.getPagIbig());
+//        data.put("philHealth", payslip.getPhilHealth());
+//        data.put("sss",payslip.getSss());
+//        data.put("incomeTax", payslip.getIncomeTax());
+//        data.put("deductions", payslip.getTotalDeductions());
+//
+//        // Net pay
+//        data.put("netPay", payslip.getNetPay());
+//
+//        db.collection("Employees").document(employee.getId()).set(data).get();
+//    }
+
     public void addEmployee(Employee employee, Payslip payslip) throws ExecutionException, InterruptedException {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", employee.getId());
@@ -82,18 +104,49 @@ public class FireStoreConnection {
         data.put("position", employee.getPosition());
         data.put("dailySalary", employee.getDailySalary());
         data.put("daysPresent", employee.getDaysPresent());
-        data.put("grossPay", employee.computeGrossSalary());
-
-        // Deductions
+        data.put("grossPay", payslip.getGrossSalary());
         data.put("pagIbig", payslip.getPagIbig());
         data.put("philHealth", payslip.getPhilHealth());
-        data.put("sss",payslip.getSss());
+        data.put("sss", payslip.getSss());
         data.put("incomeTax", payslip.getIncomeTax());
         data.put("deductions", payslip.getTotalDeductions());
-
-        // Net pay
         data.put("netPay", payslip.getNetPay());
 
         db.collection("Employees").document(employee.getId()).set(data).get();
     }
+
+    public void updateEmployee(Employee employee) throws ExecutionException, InterruptedException {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("name", employee.getName());
+        data.put("position", employee.getPosition());
+        data.put("dailySalary", employee.getDailySalary());
+        data.put("daysPresent", employee.getDaysPresent());
+
+        db.collection("Employees").document(employee.getId()).update(data).get();
+    }
+
+    public void deleteEmployee(String employeeId) throws ExecutionException, InterruptedException {
+        db.collection("Employees").document(employeeId).delete().get();
+    }
+
+    public List<Employee> getAllEmployees() throws ExecutionException, InterruptedException {
+        List<Employee> employees = new ArrayList<>();
+
+        ApiFuture<QuerySnapshot> query = db.collection("Employees").get();
+        QuerySnapshot querySnapshot = query.get();
+
+        for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+            Employee employee = new Employee(
+                    document.getString("id"),
+                    document.getString("name"),
+                    document.getString("position"),
+                    document.getDouble("dailySalary"),
+                    document.getDouble("daysPresent")
+            );
+            employees.add(employee);
+        }
+
+        return employees;
+    }
+
 }

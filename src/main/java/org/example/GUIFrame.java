@@ -14,8 +14,10 @@ public class GUIFrame extends JFrame {
     JTextField idField, nameField, positionField, dailySalaryField, daysPresentField, daysAbsentField;
     PayrollManager payrollManager;
     GridBagLayout layout;
+
     JButton computeButton, reportButton, payslipButton;
     JButton addButton, deleteButton, editButton;
+
     JTable employeeTable;
     JScrollPane tableScrollPane;
     EmployeeTableModel tableModel;
@@ -26,6 +28,16 @@ public class GUIFrame extends JFrame {
         container = getContentPane();
         container.setLayout(layout);
 
+        try {
+            FireStoreConnection firestore = new FireStoreConnection();
+            List<Employee> employees = firestore.getAllEmployees();
+            EmployeeTableModel model = new EmployeeTableModel(employees);
+            employeeTable.setModel(model);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Failed to load employee data");
+        }
+
         idField = new JTextField(20);
         nameField = new JTextField(20);
         positionField = new JTextField(20);
@@ -35,6 +47,9 @@ public class GUIFrame extends JFrame {
         employeeTable = new JTable(tableModel);
         computeButton = new JButton("Payslip");
         reportButton = new JButton("Year-End Report");
+        addEmployeeButton = new JButton("Add Employee");
+        removeEmployeeButton = new JButton("Remove Employee");
+        editEmployeeButton = new JButton("Edit Employee");
         IdLabel = new JLabel("Employee ID: ");
         nameLabel = new JLabel("Name: ");
         positionLabel = new JLabel("Position: ");
@@ -163,6 +178,75 @@ public class GUIFrame extends JFrame {
             }
         });
 
+        addEmployeeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    FireStoreConnection firestore = new FireStoreConnection();
+                    EmployeeTableModel model = new EmployeeTableModel(firestore.getAllEmployees());
+                    employeeTable.setModel(model);
+
+                    new AddEmployeeDialog(GUIFrame.this, firestore, model).setVisible(true);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(GUIFrame.this, "Error adding employee");
+                }
+            }
+        });
+
+        removeEmployeeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRow = employeeTable.getSelectedRow();
+                if (selectedRow >= 0) {
+                    try {
+                        String employeeId = (String) employeeTable.getValueAt(selectedRow, 0);
+                        FireStoreConnection firestore = new FireStoreConnection();
+
+                        int confirm = JOptionPane.showConfirmDialog(
+                                GUIFrame.this,
+                                "Are you sure you want to remove this employee?",
+                                "Confirm Removal",
+                                JOptionPane.YES_NO_OPTION);
+
+                        if (confirm == JOptionPane.YES_OPTION) {
+                            firestore.deleteEmployee(employeeId);
+                            EmployeeTableModel model = new EmployeeTableModel(firestore.getAllEmployees());
+                            employeeTable.setModel(model);
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        JOptionPane.showMessageDialog(GUIFrame.this, "Error removing employee");
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(GUIFrame.this, "Please select an employee to remove");
+                }
+            }
+        });
+
+        editEmployeeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRow = employeeTable.getSelectedRow();
+                if (selectedRow >= 0) {
+                    try {
+                        FireStoreConnection firestore = new FireStoreConnection();
+                        EmployeeTableModel model = (EmployeeTableModel) employeeTable.getModel();
+
+                        // Get the employee directly from the model
+                        Employee employeeToEdit = model.getEmployees().get(selectedRow);
+
+                        new AddEmployeeDialog(GUIFrame.this, firestore, model, employeeToEdit).setVisible(true);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        JOptionPane.showMessageDialog(GUIFrame.this, "Error editing employee");
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(GUIFrame.this, "Please select an employee to edit");
+                }
+            }
+        });
+
     }
 
 
@@ -175,15 +259,17 @@ public class GUIFrame extends JFrame {
             double daysPresent = Double.parseDouble(daysPresentField.getText());
             double daysAbsent = Double.parseDouble(daysAbsentField.getText());
 
+
             Employee employee = new Employee(id, name, position, dailySalary, daysPresent, daysAbsent);
             payrollManager.addEmployee(employee);
 
             // 🔹 Create payslip
+
             Payslip payslip = new Payslip(employee);
 
-            // 🔹 Upload to Firestore
             try {
                 FireStoreConnection firestore = new FireStoreConnection();
+
                 firestore.addEmployee(employee, payslip); // Save to Firestore
 
 
@@ -202,15 +288,13 @@ public class GUIFrame extends JFrame {
 //                }
 //                employeeTable.setModel(model);
 
+                clearInputFields();
             } catch (Exception ex) {
                 ex.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Error uploading or fetching data from Firestore.");
+                JOptionPane.showMessageDialog(this, "Error saving to Firestore");
             }
-
-            clearInputFields();
-
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Please enter valid numbers for salary and days present.", "Input Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Invalid number format");
         }
     }
 
